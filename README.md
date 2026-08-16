@@ -72,3 +72,46 @@ curl.exe -i http://127.0.0.1:8000/tasks
 ### Delete Task (Unknown ID)
 
 ![Delete Task Error](images/delete-error.png)
+
+
+
+## Database (Week 3)
+
+### Why PostgreSQL
+
+PostgreSQL was chosen (instead of SQLite) with instructor approval, to practice working with a real client-server relational database using DBeaver.
+
+### Where the database is stored
+
+The app connects to a local PostgreSQL server (`tasks_db` database, running on `localhost:5433`). Connection details are stored in a `.env` file (not committed to GitHub) and loaded via `config.py`.
+
+Example `.env`:
+```
+DATABASE_URL=postgresql://postgres:yourpassword@localhost:5433/tasks_db
+```
+
+### How to run the project
+
+1. Install dependencies:
+   ```bash
+   pip install fastapi uvicorn sqlmodel psycopg2-binary python-dotenv
+   ```
+2. Create a PostgreSQL database named `tasks_db`.
+3. Create a `.env` file in the project root with your own `DATABASE_URL` (see example above).
+4. Run the server:
+   ```bash
+   python -m uvicorn main:app --reload
+   ```
+5. On first run, the `task` table is created automatically and seeded with 3 example tasks.
+
+### Database viewer screenshot
+
+![Database Screenshot](images/Week3-Update.png)
+
+### Example SQL query
+
+```sql
+SELECT * FROM task WHERE done = true;
+SELECT COUNT(*) FROM task;
+SELECT * FROM task WHERE id = 1;
+```
