@@ -38,12 +38,6 @@ def on_startup():
             session.commit()
 
 
-# --- Old in-memory array (still used by POST/PUT/DELETE for now) ---
-tasks = [
-    {"id": 1, "title": "Learn FastAPI", "done": False},
-    {"id": 2, "title": "Build Task API", "done": False},
-    {"id": 3, "title": "Push project to GitHub", "done": True},
-]
 
 
 class TaskCreate(BaseModel):
@@ -69,7 +63,7 @@ def health():
     return {"status": "ok"}
 
 
-# --- Stage 1: Read endpoints now use the database ---
+
 
 @app.get("/tasks", summary="List all tasks")
 def get_tasks(session: Session = Depends(get_session)):
@@ -89,7 +83,7 @@ def get_task(task_id: int, session: Session = Depends(get_session)):
     return task
 
 
-# --- POST/PUT/DELETE still use the array — updated in Stage 2 and Stage 3 ---
+
 
 @app.post("/tasks", status_code=201, summary="Create a new task")
 def create_task(task: TaskCreate, session: Session = Depends(get_session)):
@@ -107,39 +101,48 @@ def create_task(task: TaskCreate, session: Session = Depends(get_session)):
 
 
 @app.put("/tasks/{task_id}", summary="Update a task")
-def update_task(task_id: int, updated_task: TaskUpdate):
-    for task in tasks:
-        if task["id"] == task_id:
-            if updated_task.title is None and updated_task.done is None:
-                return JSONResponse(
-                    status_code=400,
-                    content={"error": "Request body cannot be empty"}
-                )
-            if updated_task.title is not None:
-                if not updated_task.title.strip():
-                    return JSONResponse(
-                        status_code=400,
-                        content={"error": "Title cannot be empty"}
-                    )
-                task["title"] = updated_task.title
-            if updated_task.done is not None:
-                task["done"] = updated_task.done
-            return task
+def update_task(task_id: int, updated_task: TaskUpdate, session: Session = Depends(get_session)):
+    task = session.get(Task, task_id)
 
-    return JSONResponse(
-        status_code=404,
-        content={"error": f"Task {task_id} not found"}
-    )
+    if task is None:
+        return JSONResponse(
+            status_code=404,
+            content={"error": f"Task {task_id} not found"}
+        )
+
+    if updated_task.title is None and updated_task.done is None:
+        return JSONResponse(
+            status_code=400,
+            content={"error": "Request body cannot be empty"}
+        )
+
+    if updated_task.title is not None:
+        if not updated_task.title.strip():
+            return JSONResponse(
+                status_code=400,
+                content={"error": "Title cannot be empty"}
+            )
+        task.title = updated_task.title
+
+    if updated_task.done is not None:
+        task.done = updated_task.done
+
+    session.add(task)
+    session.commit()
+    session.refresh(task)
+    return task
 
 
 @app.delete("/tasks/{task_id}", status_code=204, summary="Delete a task")
-def delete_task(task_id: int):
-    for task in tasks:
-        if task["id"] == task_id:
-            tasks.remove(task)
-            return Response(status_code=204)
+def delete_task(task_id: int, session: Session = Depends(get_session)):
+    task = session.get(Task, task_id)
 
-    return JSONResponse(
-        status_code=404,
-        content={"error": f"Task {task_id} not found"}
-    )
+    if task is None:
+        return JSONResponse(
+            status_code=404,
+            content={"error": f"Task {task_id} not found"}
+        )
+
+    session.delete(task)
+    session.commit()
+    return Response(status_code=204)
