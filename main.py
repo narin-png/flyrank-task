@@ -2,10 +2,39 @@ from fastapi import FastAPI
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 from fastapi import Response
+from sqlmodel import SQLModel, Field, Session, select
+
+from config import engine
 
 app = FastAPI()
 
 
+# --- Database model (Stage 0) ---
+class Task(SQLModel, table=True):
+    id: int | None = Field(default=None, primary_key=True)
+    title: str
+    done: bool = False
+
+
+@app.on_event("startup")
+def on_startup():
+    # Create the tasks table if it doesn't already exist
+    SQLModel.metadata.create_all(engine)
+
+    # Insert example tasks only if the table is empty
+    with Session(engine) as session:
+        existing = session.exec(select(Task)).first()
+        if not existing:
+            example_tasks = [
+                Task(title="Learn FastAPI", done=False),
+                Task(title="Build Task API", done=False),
+                Task(title="Push project to GitHub", done=True),
+            ]
+            session.add_all(example_tasks)
+            session.commit()
+
+
+# --- Old in-memory array (still used by endpoints below for now, will be removed in Stage 1) ---
 tasks = [
     {
         "id": 1,
